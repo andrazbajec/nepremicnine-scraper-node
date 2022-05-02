@@ -1,0 +1,28 @@
+{
+  "name": "nepremicnine-scraper-node",
+  "version": "1.0.0",
+  "description": "Web scraper for nepremicnine.net",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrazbajec/nepremicnine-scraper-node.git"
+  },
+  "author": "Andraž Bajec",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/andrazbajec/nepremicnine-scraper-node/issues"
+  },
+  "homepage": "https://github.com/andrazbajec/nepremicnine-scraper-node#readme",
+  "devDependencies": {
+    "typescript": "^4.6.4"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "cheerio": "^1.0.0-rc.10",
+    "dotenv": "^16.0.0"
+  }
+}
