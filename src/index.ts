@@ -1,5 +1,3 @@
-import axios from 'axios';
-import cheerio from 'cheerio';
 import dayjs from 'dayjs';
 import 'dotenv/config';
 import DatabaseController from './controllers/DatabaseController';
@@ -7,6 +5,9 @@ import SMSController from './controllers/SMSController';
 import { delay, log } from './helpers/GeneralHelper';
 import { getObjectKeyValues } from './helpers/ArrayHelper';
 import MailController from './controllers/MailController';
+import Puppeteer from "./controllers/PuppeteerController";
+import Parser_v1 from "./parsers/Parser_v1";
+import PageHelper from "./helpers/PageHelper";
 
 (async function () {
     const db = DatabaseController();
@@ -21,56 +22,39 @@ import MailController from './controllers/MailController';
 
     const parsePage = async (path: string, mainUrl: string, page: number = 1) => {
         let url = `https://www.nepremicnine.net${path}`;
-        const ads = [];
+        let ads = [];
+        const adTypeRegex = new RegExp(/(?<=\.net\/)[^\/]*(?=\/)/, 'g');
+        const adType = mainUrl.match(adTypeRegex)[0];
 
         if (page > 1) {
             url += `${page}/`;
         }
 
-        const response = await axios.get(url);
+        log(`:yellow:Parsing URL: :green:"${url}"`);
 
-        if (response.status !== 200) {
-            console.error('Invalid response received from server!', response);
-            return;
+        const {
+            browserPage,
+            closeBrowserPage,
+        } = await Puppeteer.getBrowserPage();
+        await browserPage.goto(url);
+        const html = await browserPage.content();
+
+        if (html.includes('Checking if the site connection is secure')) {
+            await PageHelper.handleBlocked(browserPage);
         }
 
-        const $ = cheerio.load(response.data);
-        const adTypeRegex = new RegExp(/(?<=\.net\/)[^\/]*(?=\/)/, 'g');
-        const adType = mainUrl.match(adTypeRegex)[0];
+        await closeBrowserPage();
 
-        for (const element of $('div.seznam > div.oglas_container')) {
-            const ad = $(element);
-            const price = ad.find('span.cena').text();
-            const size = ad.find('span.velikost').text();
+        ads = [...ads, ...Parser_v1.parseList(html)];
 
-            const path = ad.find('a.slika')
-                .attr('href')
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace('¡', 'i');
-
-            const title = ad.find('span.title').text();
-            const url = `https://www.nepremicnine.net${path}`;
-            const pathID = path.match(/(?<=_)\d*(?=\/$)/)[0];
-
-            if (!adType || (adType !== url.match(adTypeRegex)[0] ?? null)) {
-                continue;
-            }
-
-            ads.push({ title, price, size, path, url, pathID });
-
-            log(`:green:Ad found: :yellow:${title}, ${price}, ${size}, ${path}`);
-        }
-
-        if ($('#pagination:first-child > ul > li.paging_next').length) {
+        if (Parser_v1.hasNextPage(html)) {
             log(':green:Parsing next page!');
+
             await delay(+process.env.DELAY_PAGE_SWITCH);
 
             const nextPageAds = await parsePage(path, mainUrl, page + 1);
 
-            for (const nextPageAd of nextPageAds) {
-                ads.push(nextPageAd);
-            }
+            ads = [...ads, ...nextPageAds];
         }
 
         return ads;
@@ -101,31 +85,41 @@ import MailController from './controllers/MailController';
         const validatedAds = [];
 
         for (const ad of ads) {
+            await delay(+process.env.DELAY_AD_VALIDATION);
             log(`:yellow:Validating ad::green: ${ad.url}`);
-            const response = await axios.get(ad.url);
 
-            if (response.status !== 200) {
-                console.error('Invalid response received from server!', response);
-                continue;
+            const {
+                browserPage,
+                closeBrowserPage,
+            } = await Puppeteer.getBrowserPage();
+            await browserPage.goto(ad.url);
+            const html = await browserPage.content();
+
+            if (html.includes('Checking if the site connection is secure')) {
+                await PageHelper.handleBlocked(browserPage);
             }
 
-            const $ = cheerio.load(response.data);
+            await closeBrowserPage();
 
-            if ($('div.cena:contains(€)').length) {
+            if (Parser_v1.adIsValid(html)) {
                 validatedAds.push(ad);
 
-                await delay(+process.env.DELAY_AD_VALIDATION);
                 log(':green:Ad was valid!');
             } else {
                 log(':red:Ad was invalid!');
             }
+
+            break;
         }
+
+        return ads;
 
         return validatedAds;
     }
 
     const parse = async (url: string) => {
         const ads = await parsePage(url.replace(/.*nepremicnine\.net/, ''), url);
+
         const dbPaths = (await db.select('Ad', ['PathID'], {
             PathID: {
                 type: 'in',

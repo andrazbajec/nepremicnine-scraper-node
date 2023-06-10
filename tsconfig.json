@@ -4,7 +4,11 @@
     "esModuleInterop": true,
     "target": "es6",
     "moduleResolution": "node",
-    "outDir": "dist"
+    "outDir": "dist",
+    "sourceMap": true,
+    "types": [
+      "puppeteer"
+    ]
   },
   "lib": [
     "es2015"
