@@ -77,7 +77,8 @@ import PageHelper from "./helpers/PageHelper";
         const message = `New ads:\n${ads.join('\n')}`;
 
         log(`:yellow:SENDING MESSAGE::green: ${message}`);
-        smsController.sendSMS(message);
+        smsController.sendSMS(message)
+            .catch(message => log(`:red:SMS send failed: ${message}`));
         mailController.sendMail(message);
     }
 
@@ -191,7 +192,11 @@ import PageHelper from "./helpers/PageHelper";
             log(`:red:Crawler died, attempt ${counter} of sending SMS!`);
 
             try {
-                await smsController.sendSMS('The crawler has died unexpectedly!');
+                try {
+                    await smsController.sendSMS('The crawler has died unexpectedly!');
+                } catch ({ message }) {
+                    log(`:red:SMS send failed: ${message}`);
+                }
                 log(':green:The SMS has been sent!');
                 smsSent = true;
                 break;
