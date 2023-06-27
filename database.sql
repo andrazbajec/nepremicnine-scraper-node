@@ -5,7 +5,7 @@ CREATE TABLE Ad
     Price        TEXT NULL,
     Size         TEXT NULL,
     Description  TEXT NULL,
-    Floors       VARCHAR(5) NULL,
+    Floors       VARCHAR(20) NULL,
     Year         VARCHAR(4) NULL,
     Path         TEXT NULL,
     PathID       INT NULL,

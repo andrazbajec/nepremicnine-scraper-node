@@ -19,7 +19,7 @@ const colorMap = {
     white: '\x1b[37m',
 }
 
-export const log = (text: string): void => {
+export const log = (text: string, extraData: Object = {}): void => {
     text = `:cyan:[${dayjs().format('YYYY-MM-DD HH:mm:ss')}]:reset: ${text}:reset:`;
     text += ':reset:';
     let colorlessText = text;
@@ -27,6 +27,14 @@ export const log = (text: string): void => {
     for (const color in colorMap) {
         colorlessText = colorlessText.replace(new RegExp(`:${color}:`, 'g'), '');
         text = text.replace(new RegExp(`:${color}:`, 'g'), colorMap[color]);
+    }
+
+    if (Object.keys(extraData).length) {
+        try {
+            colorlessText += `\nCUSTOM DATA: ${JSON.stringify(extraData)}`
+        } catch {
+            // Fall through
+        }
     }
 
     fs.appendFile(`logs/log_${dayjs().format('YYYY_MM_DD')}.log`, `${colorlessText}\n`, err => {
