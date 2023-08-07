@@ -78,7 +78,7 @@ import PageHelper from "./helpers/PageHelper";
 
         log(`:yellow:SENDING MESSAGE::green: ${message}`);
         smsController.sendSMS(message)
-            .catch(message => log(`:red:SMS send failed: ${message}`));
+            ?.catch(message => log(`:red:SMS send failed: ${message}`));
         mailController.sendMail(message);
     }
 
@@ -109,8 +109,6 @@ import PageHelper from "./helpers/PageHelper";
             } else {
                 log(':red:Ad was invalid!');
             }
-
-            break;
         }
 
         return ads;
@@ -165,18 +163,22 @@ import PageHelper from "./helpers/PageHelper";
     }
 
     const urls = process.env.URLS.split(';');
-    let counter = 0;
 
     try {
         const crawlingDelay = (+process.env.DELAY_RECRAWL_MIN) * 1000 * 60;
+        const siteCrawlingDelay = 1000 * 30
 
         while (true) {
-            const url = urls[counter++];
-            log(`:magenta:Started crawling ${url}!`);
-            await parse(url);
+            let counter = 0;
 
-            if (counter === urls.length) {
-                counter = 0;
+            for (const url of urls) {
+                log(`:magenta:Started crawling ${url}!`);
+                await parse(url);
+
+                if (++counter !== urls.length) {
+                    log(`:magenta:Waiting for ${siteCrawlingDelay / 1000} seconds before starting crawl on next site!`);
+                    await delay(siteCrawlingDelay);
+                }
             }
 
             log(':magenta:Stopped crawling!');
@@ -189,7 +191,7 @@ import PageHelper from "./helpers/PageHelper";
         const smsDelay = (+process.env.DELAY_RESEND_SMS_MIN) * 1000 * 60;
 
         while (counter++ < 5) {
-            log(`:red:Crawler died, attempt ${counter} of sending SMS!`);
+            log(`:red:Crawler died, attempt ${counter} of sending SMS! (${e.message})`);
 
             try {
                 try {
