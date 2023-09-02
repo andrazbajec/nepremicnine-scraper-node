@@ -36,8 +36,24 @@ import PageHelper from "./helpers/PageHelper";
             browserPage,
             closeBrowserPage,
         } = await Puppeteer.getBrowserPage();
-        await browserPage.goto(url);
-        const html = await browserPage.content();
+
+        let tries: number = 0;
+        let success: boolean = false;
+        let html: string;
+
+        do {
+            try {
+                log(`:yellow:Try #${++tries} of parsing page`);
+
+                await browserPage.goto(url);
+                html = await browserPage.content();
+                success = true;
+            } catch(error) {
+                if (tries > 3) {
+                    throw error;
+                }
+            }
+        } while (!success);
 
         if (html.includes('Checking if the site connection is secure')) {
             await PageHelper.handleBlocked(browserPage);
@@ -93,8 +109,24 @@ import PageHelper from "./helpers/PageHelper";
                 browserPage,
                 closeBrowserPage,
             } = await Puppeteer.getBrowserPage();
-            await browserPage.goto(ad.url);
-            const html = await browserPage.content();
+
+            let tries = 0;
+            let success = false;
+            let html: string;
+
+            do {
+                try {
+                    log(`:yellow:Try #${++tries} of validating ad`);
+
+                    await browserPage.goto(ad.url);
+                    html = await browserPage.content();
+                    success = true;
+                } catch(error) {
+                    if (tries > 3) {
+                        throw error;
+                    }
+                }
+            } while (!success);
 
             if (html.includes('Checking if the site connection is secure')) {
                 await PageHelper.handleBlocked(browserPage);
