@@ -196,55 +196,61 @@ import PageHelper from "./helpers/PageHelper";
 
     const urls = process.env.URLS.split(';');
 
-    try {
-        const crawlingDelay = (+process.env.DELAY_RECRAWL_MIN) * 1000 * 60;
-        const siteCrawlingDelay = 1000 * 30
+    const main = async () => {
+        try {
+            const crawlingDelay = (+process.env.DELAY_RECRAWL_MIN) * 1000 * 60;
+            const siteCrawlingDelay = 1000 * 30
 
-        while (true) {
+            while (true) {
+                let counter = 0;
+
+                for (const url of urls) {
+                    log(`:magenta:Started crawling ${url}!`);
+                    await parse(url);
+
+                    if (++counter !== urls.length) {
+                        log(`:magenta:Waiting for ${siteCrawlingDelay / 1000} seconds before starting crawl on next site!`);
+                        await delay(siteCrawlingDelay);
+                    }
+                }
+
+                log(':magenta:Stopped crawling!');
+                log(`:magenta:Waiting for ${process.env.DELAY_RECRAWL_MIN} minutes!`);
+                await delay(crawlingDelay);
+            }
+        } catch (e) {
             let counter = 0;
+            let smsSent = false;
+            const smsDelay = (+process.env.DELAY_RESEND_SMS_MIN) * 1000 * 60;
 
-            for (const url of urls) {
-                log(`:magenta:Started crawling ${url}!`);
-                await parse(url);
+            while (counter++ < 5) {
+                log(`:red:Crawler died, attempt ${counter} of sending SMS! (${e.message})`);
 
-                if (++counter !== urls.length) {
-                    log(`:magenta:Waiting for ${siteCrawlingDelay / 1000} seconds before starting crawl on next site!`);
-                    await delay(siteCrawlingDelay);
-                }
-            }
-
-            log(':magenta:Stopped crawling!');
-            log(`:magenta:Waiting for ${process.env.DELAY_RECRAWL_MIN} minutes!`);
-            await delay(crawlingDelay);
-        }
-    } catch (e) {
-        let counter = 0;
-        let smsSent = false;
-        const smsDelay = (+process.env.DELAY_RESEND_SMS_MIN) * 1000 * 60;
-
-        while (counter++ < 5) {
-            log(`:red:Crawler died, attempt ${counter} of sending SMS! (${e.message})`);
-
-            try {
                 try {
-                    await smsController.sendSMS('The crawler has died unexpectedly!');
-                } catch ({ message }) {
-                    log(`:red:SMS send failed: ${message}`);
+                    try {
+                        await smsController.sendSMS('The crawler has died unexpectedly!');
+                    } catch ({ message }) {
+                        log(`:red:SMS send failed: ${message}`);
+                    }
+                    log(':green:The SMS has been sent!');
+                    smsSent = true;
+                    break;
+                } catch (e) {
+                    await delay(smsDelay);
                 }
-                log(':green:The SMS has been sent!');
-                smsSent = true;
-                break;
-            } catch (e) {
-                await delay(smsDelay);
             }
+
+            if (!smsSent) {
+                log(':red:SMS could not be sent!');
+            }
+
+            log(`:red:${e.message}`);
+            console.error(e);
         }
+    }
 
-        if (!smsSent) {
-            log(':red:SMS could not be sent!');
-        }
-
-        console.error(e);
-
-        process.exit();
+    while(true) {
+        await main();
+        await delay((+process.env.DELAY_APP_DIED_RESTART_MIN) * 1000 * 60);
     }
 })();

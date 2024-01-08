@@ -56,7 +56,7 @@ const DatabaseController = () => {
         return new Promise(resolve => {
             db.query(sql, params, (error, results, fields) => {
                 if (error) {
-                    log(`:red:DB MySQL error: :yellow:${error}`, { error, params, sql });
+                    log(`:red:DB MySQL error: :yellow:${error} [${sql}]`, { error, params, sql });
                     resolve(false);
                 }
 
